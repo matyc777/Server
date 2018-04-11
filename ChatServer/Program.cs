@@ -5,16 +5,16 @@ namespace ChatServer
 {
     class Program
     {
-        static Server server; // сервер
-        static Thread listenThread; // потока для прослушивания
+        static Server server; 
+        static Thread listenThread;
 
         static void Main(string[] args)
         {
             try
             {
                 server = new Server();
-                listenThread = new Thread(new ThreadStart(server.Listen));
-                listenThread.Start(); //старт потока
+                listenThread = new Thread(new ThreadStart(server.Start));
+                listenThread.Start();
             }
             catch (Exception ex)
             {
