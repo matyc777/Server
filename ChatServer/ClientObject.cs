@@ -25,11 +25,11 @@ namespace ChatServer
         {
             try
             {
-                string message = GetMessage();
-                //тут должен быть парсинг сообщения
-                string Name = "";//допустим мы получили имя с парсинга для отправки запроса на чаттинг
+                string message = GetMessage();                                                               //наверное 
+                //тут должен быть парсинг сообщения                                                          //это всё
+                string Name = "";//допустим мы получили имя с парсинга для отправки запроса на чаттинг       //надо в while(true)(скорее всего все GetMessage() надо в while)
 
-                switch(message)
+                switch (message)
                 {
                     case "0":// если клиент захотел создать чат(он прислал имя Челика с которым хочет чатиться)
                         foreach(ClientObject clientObj in server.GetClients)// тогда ищем в онлайне этого челика и отправляем ему запрос
