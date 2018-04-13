@@ -18,16 +18,18 @@ namespace ChatServer
             client = tcpClient;
             server = serverObject;
             serverObject.AddConnection(this);
-            Stream = client.GetStream();//возможно лучше засунуть в метод Process()
         }
 
         public void Process()
         {
             try
             {
+                Stream = client.GetStream();
+                Console.WriteLine("got stream");
                 string message = GetMessage();                                                               //наверное 
                 //тут должен быть парсинг сообщения                                                          //это всё
-                string Name = "";//допустим мы получили имя с парсинга для отправки запроса на чаттинг       //надо в while(true)(скорее всего все GetMessage() надо в while)
+                string Name = "";//допустим мы получили имя с парсинга для отправки запроса на чаттинг       //надо в while(true)
+                Console.WriteLine(message);
 
                 switch (message)
                 {

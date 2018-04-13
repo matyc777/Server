@@ -20,6 +20,19 @@ namespace ChatServer
             get { return clients; }
         }
 
+        public List<string> GetClientsNames
+        {
+            get
+            {
+                List<string> ClientsNames = new List<string>();
+                foreach(ClientObject obj in clients)
+                {
+                    ClientsNames.Add(obj.ClientName);
+                }
+                return ClientsNames;
+            }
+        }
+
         protected internal void AddConnection(ClientObject clientObject)
         {
             clients.Add(clientObject);
@@ -45,29 +58,50 @@ namespace ChatServer
 
                 while (true)
                 {
+                    Console.WriteLine("begin");
                     TcpClient tcpClient = tcpListener.AcceptTcpClient();
-                    switch(GetMessage(tcpClient))//cкорее всего и его нужно в отдельный поток(но это не точно) вроде там листенера нету
+                    Console.WriteLine("Accepted client");
+                    //сюда надо запилить отдельный поток на весь код после этого коммента, GetMessage() стопает основной поток
+                    List<string> InstructionArray;
+                    string message;
+                    message = GetMessage(tcpClient);
+                    Console.WriteLine(message);
+                    InstructionArray = CommandTranslator.Parse(message);//0-команда(signup, login, online)
+                                                               //1-логин
+                                                               //2-пароль
+                    switch (InstructionArray[0])
                     {
-                        case "0":
-                            //регистрация
-                            //новый поток для регистрации и тд...
+                        case "signup"://регистрация
+                            Console.WriteLine(InstructionArray[0]);
+                            Console.WriteLine(InstructionArray[1]);
+                            Console.WriteLine(InstructionArray[2]);
+                            //добавление в базу
+                            ClientObject RegClientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
+                            Thread RegClientThread = new Thread(new ThreadStart(RegClientObject.Process));
+                            RegClientThread.Start();
                             break;
-                        case "1"://логин
+                        case "login"://логин
+                            Console.WriteLine(InstructionArray[0]);
+                            Console.WriteLine(InstructionArray[1]);
+                            Console.WriteLine(InstructionArray[2]);
                             if (true)//(проверка логина и пароля) {создание потока для обработки клиента}
                             {
-                                string LoginName = "распаршенный логин";
-                                ClientObject clientObject = new ClientObject(tcpClient, this, LoginName);
+                                List<string> Test = new List<string>();
+                                Test.Add("Mat");
+                                Test.Add("Manzh");
+                                Test.Add("Matyc");
+                                SendMessage("acc" + CommandTranslator.Encode(Test), tcpClient);//+список онлайна
+                                ClientObject clientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
                                 Thread clientThread = new Thread(new ThreadStart(clientObject.Process));
                                 clientThread.Start();
-                                SendMessage("login accepted", tcpClient);//+список онлайна
                             }
                             else
                             {
-                                SendMessage("login unaccepted", tcpClient);
+                                SendMessage("unacc", tcpClient);
                             }
                             break;
-                        case "2":
-                            //список онлайна
+                        case "online":
+                            SendMessage(CommandTranslator.Encode(GetClientsNames), tcpClient);
                             break;
                     }
                 }
