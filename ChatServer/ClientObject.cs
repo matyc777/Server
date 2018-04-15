@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Text;
+using System.Collections.Generic;
 
 namespace ChatServer
 {
@@ -23,36 +24,41 @@ namespace ChatServer
         public void Process()
         {
             bool Locker = true;
+            List<string> InstructionArray;
             while (Locker)
             {
                 try
                 {
                     Stream = client.GetStream();
-                    Console.WriteLine("got stream");
-                    string message = GetMessage();                                                               //наверное 
-                                                                                                                 //тут должен быть парсинг сообщения                                                          //это всё
-                    string Name = "";//допустим мы получили имя с парсинга для отправки запроса на чаттинг       //надо в while(true)
+                    Console.WriteLine(ClientName + " has got stream");
+                    //server.BroadcastMessage(ClientName + " has got stream", "gitik");
+                    //Console.ReadKey();
+                    string message = GetMessage();
+                    InstructionArray = CommandTranslator.Parse(message);
+                    //допустим мы получили имя с парсинга для отправки запроса на чаттинг
                     Console.WriteLine(message);
 
-                    switch (message)
+                    switch (InstructionArray[0])
                     {
-                        case "0":// если клиент захотел создать чат(он прислал имя Челика с которым хочет чатиться)
+                        case "newchat":// если клиент захотел создать чат(он прислал имя Челика с которым хочет чатиться)
                             foreach (ClientObject clientObj in server.GetClients)// тогда ищем в онлайне этого челика и отправляем ему запрос
                             {
-                                if (Name == clientObj.ClientName) server.SendMessage("I wanna chatting with you" + ClientName, clientObj.client);
+                                if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("newchat?:" + ClientName, clientObj.client);//**либо переделать отправку
                             }
+                            Console.WriteLine(ClientName + " w8ing 4 answer");
                             string answer = GetMessage();
+                            Console.WriteLine(ClientName + " got answer: " + answer);
                             if (answer == "yes")// если согласен
                             {
-                                CompanionName = message;
+                                CompanionName = InstructionArray[1];
                                 // в бесконечном цикле получаем сообщения от клиента
                                 while (true)
                                 {
                                     try
                                     {
                                         message = GetMessage();// получаем мессаге от клиента(что-то в духе: я хочу отправить сообщение)
-                                        message = String.Format("{0}: {1}", CompanionName, message);// форматируем мессаге ф понятную для клиенткого приложения форму
-                                                                                                    //Console.WriteLine(message);
+                                        message = String.Format("{0}: {1}", ClientName, message);// форматируем мессаге ф понятную для клиенткого приложения форму
+                                        //Console.WriteLine(message);
                                         server.BroadcastMessage(message, this.CompanionName);// и отправляем мессаге рофлочелику(2ой клиент)
                                     }
                                     catch
@@ -70,24 +76,23 @@ namespace ChatServer
                                 //Process();
                             }
                             break;
-                        case "I wanna chating with you"://сюда придёт ещё имя
-                            server.SendMessage("Someone wanna chat with you + имя которое пришло", client);
-                            string name = "";//имя чела который хочет чатиться(надо будет распарсить)
-                            string answer2 = GetMessage();
-                            if (answer2 == "yes")// отправляем тому кто запрашивал ответ клиента
-                            {
+                        case "yes"://сюда придёт ещё имя//**либо здесь обрабатывать ответ на вопрос о чате
                                 foreach (ClientObject clientObj in server.GetClients)// ищем в онлайне этого челика и отправляем ему запрос
                                 {
-                                    if (name == clientObj.ClientName) server.SendMessage("Yes, I wanna chat too" + ClientName, clientObj.client);//ищем его имя и отправляем ответ "ДА"
+                                    if (InstructionArray[1] == clientObj.ClientName)
+                                    {
+                                        server.SendMessage("yes", clientObj.client);
+                                        Console.WriteLine("Sended yes from " + ClientName + " to " + clientObj.ClientName);
+                                    }//ищем его имя и отправляем ответ "ДА"
                                 }
-                                CompanionName = name;// имя собеседника 
+                                CompanionName = InstructionArray[1];// имя собеседника 
                                                      // в бесконечном цикле получаем сообщения от клиента
                                 while (true)
                                 {
                                     try
                                     {
                                         message = GetMessage();// получаем мессаге от клиента(что-то в духе: я хочу отправить сообщение)
-                                        message = String.Format("{0}: {1}", CompanionName, message);// форматируем мессаге ф понятную для клиенткого приложения форму
+                                        message = String.Format("{0}: {1}", ClientName, message);// форматируем мессаге ф понятную для клиенткого приложения форму
                                                                                                     //Console.WriteLine(message);
                                         server.BroadcastMessage(message, this.CompanionName);// и отправляем мессаге рофлочелику(2ой клиент)
                                     }
@@ -99,13 +104,12 @@ namespace ChatServer
                                         break;
                                     }
                                 }
-                              
-                            }
-                            else
+                            break;
+                        case "no":
                             {
                                 foreach (ClientObject clientObj in server.GetClients)// тогда ищем в онлайне этого челика и отправляем ему запрос
                                 {
-                                    if (name == clientObj.ClientName) server.SendMessage("No, i dont wanna chat" + ClientName, clientObj.client);//ищем его имя и отправляем ответ "НЕТ"
+                                    if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("no", clientObj.client);//ищем его имя и отправляем ответ "НЕТ"
                                 }
                             }
                             break;

@@ -142,7 +142,7 @@ namespace ChatServer
             byte[] data = Encoding.Unicode.GetBytes(message);
             for (int i = 0; i < clients.Count; i++)
             {
-                if (clients[i].ClientName != id) 
+                if (clients[i].ClientName == id) 
                 {
                     clients[i].Stream.Write(data, 0, data.Length); //передача данных
                 }
