@@ -11,7 +11,7 @@ namespace ChatServer
 {
     public class Server
     {
-        static TcpListener tcpListener; // сервер для прослушивания
+        static TcpListener tcpListener;
         List<ClientObject> clients = new List<ClientObject>(); // все подключения(онлайн)
         List<(ClientObject FirstClient, ClientObject SecondClient)> ActiveChats = new List<(ClientObject FirstClient, ClientObject SecondClient)>();//активные чаты
 
@@ -40,11 +40,8 @@ namespace ChatServer
 
         protected internal void RemoveConnection(string id)
         {
-            // получаем по id закрытое подключение
             ClientObject client = clients.FirstOrDefault(c => c.ClientName == id);
-            // и удаляем его из списка подключений
-            if (client != null)
-                clients.Remove(client);
+            if (client != null) clients.Remove(client);
         }
 
         // прослушивание входящих подключений
@@ -69,6 +66,7 @@ namespace ChatServer
                     InstructionArray = CommandTranslator.Parse(message);//0-команда(signup, login, online)
                                                                //1-логин
                                                                //2-пароль
+                                                               //3-геолокация
                     switch (InstructionArray[0])
                     {
                         case "signup"://регистрация

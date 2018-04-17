@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnswerStructure.cs" />
     <Compile Include="ClientObject.cs" />
     <Compile Include="CommandTranslator.cs" />
     <Compile Include="Program.cs" />

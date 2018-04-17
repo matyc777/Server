@@ -62,44 +62,41 @@ namespace ChatServer
                                             CompanionName = null;
                                             break;
                                         }
-                                        message = String.Format("{0}: {1}", ClientName, message);// форматируем мессаге ф понятную для клиенткого приложения форму
-                                        //Console.WriteLine(message);
-                                        server.BroadcastMessage(message, CompanionName);// и отправляем мессаге рофлочелику(2ой клиент)
+                                        message = String.Format("{0}: {1}", ClientName, message);
+                                        server.BroadcastMessage(message, CompanionName);
                                     }
                                     catch
                                     {
                                         message = "exitchat";
                                         server.BroadcastMessage(message, CompanionName);
                                         CompanionName = null;
-                                        Locker = false;//отправляем мессаге рофлочелику(2ой клиент) что клиент(собеседник) ливнул
+                                        Locker = false;
                                         server.RemoveConnection(ClientName);
                                         Close();
                                         break;
                                     }
                                 }
                             }
-                            else//если не согласен
+                            else
                             {
                                 CompanionName = null;
-                                //Process();
                             }
                             break;
-                        case "yes"://сюда придёт ещё имя//**либо здесь обрабатывать ответ на вопрос о чате
+                        case "yes"://либо здесь обрабатывать ответ на вопрос о чате
                             foreach (ClientObject clientObj in server.GetClients)// ищем в онлайне этого челика и отправляем ему запрос
                             {
                                 if (InstructionArray[1] == clientObj.ClientName)
                                 {
-                                    server.SendMessage("yes", clientObj.client);//********
+                                    server.SendMessage("yes", clientObj.client);
                                     Console.WriteLine("Sended yes from " + ClientName + " to " + clientObj.ClientName);
-                                }//ищем его имя и отправляем ответ "ДА"
+                                }
                             }
-                            CompanionName = InstructionArray[1];// имя собеседника 
-                                                                    // в бесконечном цикле получаем сообщения от клиента
+                            CompanionName = InstructionArray[1];
                             while (true)
                             {
                                 try
                                 {
-                                    message = GetMessage();// получаем мессаге от клиента(что-то в духе: я хочу отправить сообщение)
+                                    message = GetMessage();
                                     if (message == "exitchat")
                                     {
                                         server.BroadcastMessage(message, CompanionName);
@@ -111,15 +108,15 @@ namespace ChatServer
                                         CompanionName = null;
                                         break;
                                     }
-                                    message = String.Format("{0}: {1}", ClientName, message);// форматируем мессаге ф понятную для клиенткого приложения форму
-                                    server.BroadcastMessage(message, CompanionName);// и отправляем мессаге рофлочелику(2ой клиент)
+                                    message = String.Format("{0}: {1}", ClientName, message);
+                                    server.BroadcastMessage(message, CompanionName);
                                 }
                                 catch
                                 {
                                     message = "exitchat";
                                     server.BroadcastMessage(message, CompanionName);
                                     CompanionName = null;
-                                    Locker = false;//отправляем мессаге рофлочелику(2ой клиент) что клиент(собеседник) ливнул
+                                    Locker = false;
                                     server.RemoveConnection(ClientName);
                                     Close();
                                     break;
@@ -128,9 +125,9 @@ namespace ChatServer
                             break;
                         case "no":
                             {
-                                foreach (ClientObject clientObj in server.GetClients)// тогда ищем в онлайне этого челика и отправляем ему запрос
+                                foreach (ClientObject clientObj in server.GetClients)
                                 {
-                                    if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("no", clientObj.client);//ищем его имя и отправляем ответ "НЕТ"
+                                    if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("no", clientObj.client);
                                 }
                             }
                             break;
@@ -147,16 +144,8 @@ namespace ChatServer
                     Console.WriteLine(e.Message);
                 }
             }
-            //finally
-            //{
-            //    Console.WriteLine("Disconnected");
-            //    // в случае выхода из цикла закрываем ресурсы
-            //    //server.RemoveConnection(this.ClientName);
-            //    Close();
-            //}
         }
 
-        // чтение входящего сообщения
         private string GetMessage()
         {
             byte[] data = new byte[64];
@@ -172,7 +161,6 @@ namespace ChatServer
             return builder.ToString();
         }
 
-        // закрытие подключения
         protected internal void Close()
         {
             if (Stream != null)
