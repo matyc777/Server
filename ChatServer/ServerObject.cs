@@ -13,7 +13,7 @@ namespace ChatServer
     {
         static TcpListener tcpListener;
         List<ClientObject> clients = new List<ClientObject>(); // все подключения(онлайн)
-        List<(ClientObject FirstClient, ClientObject SecondClient)> ActiveChats = new List<(ClientObject FirstClient, ClientObject SecondClient)>();//активные чаты
+        //List<(ClientObject FirstClient, ClientObject SecondClient)> ActiveChats = new List<(ClientObject FirstClient, ClientObject SecondClient)>();//активные чаты
 
         public List<ClientObject> GetClients
         {
@@ -44,64 +44,78 @@ namespace ChatServer
             if (client != null) clients.Remove(client);
         }
 
-        // прослушивание входящих подключений
+        void AcceptedClientThreadFunction(object Client)
+        {
+            TcpClient tcpClient = Client as TcpClient;
+            List<string> InstructionArray;
+            string message = "";
+            try
+            {
+                message = GetMessage(tcpClient);
+            }
+            catch
+            {
+            }
+            Console.WriteLine(message);
+            InstructionArray = CommandTranslator.Parse(message);//0-команда(signup, login, online)
+                                                                //1-логин
+                                                                //2-пароль
+                                                                //3-геолокация
+            switch (InstructionArray[0])
+            {
+                case "!signup":
+                    try
+                    {
+                        Base.Write(InstructionArray[1], InstructionArray[2]);
+                        SendMessage("!accepted" + CommandTranslator.Encode(GetClientsNames), tcpClient);//+список онлайна
+                        ClientObject RegClientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
+                        Thread RegClientThread = new Thread(new ThreadStart(RegClientObject.Process));
+                        RegClientThread.Start();
+                    }
+                    catch
+                    {
+                        SendMessage("!unaccepted", tcpClient);
+                    }
+                    //добавление в базу
+                    break;
+                case "!login":
+                    if (Base.Find(InstructionArray[1], InstructionArray[2]))
+                    {
+                        SendMessage("!accepted" + CommandTranslator.Encode(GetClientsNames), tcpClient);//+список онлайна
+                        ClientObject clientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
+                        Thread clientThread = new Thread(new ThreadStart(clientObject.Process));
+                        clientThread.Start();
+                    }
+                    else
+                    {
+                        SendMessage("!unaccepted", tcpClient);
+                    }
+                    break;
+                case "!online":
+                    Console.WriteLine("In online");
+                    SendMessage(CommandTranslator.Encode(GetClientsNames), tcpClient);
+                    break;
+                case "!file":
+                    Console.WriteLine("File!!!!");
+                    break;
+            }
+        }
+
         protected internal void Start()
         {
             try
             {
-                tcpListener = new TcpListener(IPAddress.Parse("127.0.0.1"), 11111);
+                tcpListener = new TcpListener(IPAddress.Any, 53010);
                 tcpListener.Start();
                 Console.WriteLine("Сервер запущен. Ожидание подключений...");
 
                 while (true)
                 {
-                    Console.WriteLine("begin");
+                    //Console.WriteLine("begin");
                     TcpClient tcpClient = tcpListener.AcceptTcpClient();
                     Console.WriteLine("Accepted client");
-                    //сюда надо запилить отдельный поток на весь код после этого коммента, GetMessage() стопает основной поток
-                    List<string> InstructionArray;
-                    string message;
-                    message = GetMessage(tcpClient);
-                    Console.WriteLine(message);
-                    InstructionArray = CommandTranslator.Parse(message);//0-команда(signup, login, online)
-                                                               //1-логин
-                                                               //2-пароль
-                                                               //3-геолокация
-                    switch (InstructionArray[0])
-                    {
-                        case "signup"://регистрация
-                            Console.WriteLine(InstructionArray[0]);
-                            Console.WriteLine(InstructionArray[1]);
-                            Console.WriteLine(InstructionArray[2]);
-                            //добавление в базу
-                            ClientObject RegClientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
-                            Thread RegClientThread = new Thread(new ThreadStart(RegClientObject.Process));
-                            RegClientThread.Start();
-                            break;
-                        case "login"://логин
-                            Console.WriteLine(InstructionArray[0]);
-                            Console.WriteLine(InstructionArray[1]);
-                            Console.WriteLine(InstructionArray[2]);
-                            if (true)//(проверка логина и пароля) {создание потока для обработки клиента}
-                            {
-                                List<string> Test = new List<string>();
-                                Test.Add("Mat");
-                                Test.Add("Manzh");
-                                Test.Add("Matyc");
-                                SendMessage("acc" + CommandTranslator.Encode(Test), tcpClient);//+список онлайна
-                                ClientObject clientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
-                                Thread clientThread = new Thread(new ThreadStart(clientObject.Process));
-                                clientThread.Start();
-                            }
-                            else
-                            {
-                                SendMessage("unacc", tcpClient);
-                            }
-                            break;
-                        case "online":
-                            SendMessage(CommandTranslator.Encode(GetClientsNames), tcpClient);
-                            break;
-                    }
+                    Thread AcceptedClientThread = new Thread(new ParameterizedThreadStart(AcceptedClientThreadFunction));
+                    AcceptedClientThread.Start(tcpClient as object);
                 }
             }
             catch (Exception ex)
@@ -135,14 +149,14 @@ namespace ChatServer
         }
 
         // отправка сообщения микрочелу
-        protected internal void BroadcastMessage(string message, string id)// надо переделать
+        protected internal void SendMessageById(string message, string id)
         {
             byte[] data = Encoding.Unicode.GetBytes(message);
             for (int i = 0; i < clients.Count; i++)
             {
                 if (clients[i].ClientName == id) 
                 {
-                    clients[i].Stream.Write(data, 0, data.Length); //передача данных
+                    clients[i].Stream.Write(data, 0, data.Length);
                 }
             }
         }
@@ -154,9 +168,9 @@ namespace ChatServer
 
             for (int i = 0; i < clients.Count; i++)
             {
-                clients[i].Close(); //отключение клиента
+                clients[i].Close();
             }
-            Environment.Exit(0); //завершение процесса
+            Environment.Exit(0);
         }
     }
 }

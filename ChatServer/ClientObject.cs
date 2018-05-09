@@ -2,6 +2,10 @@
 using System.Net.Sockets;
 using System.Text;
 using System.Collections.Generic;
+using System.Xml.Linq;
+using System.IO;
+using System.Xml;
+using System.Threading;
 
 namespace ChatServer
 {
@@ -10,6 +14,8 @@ namespace ChatServer
         protected internal string ClientName { get; private set; }//его принимаем за уникальное имя
         protected internal NetworkStream Stream { get; private set; }
         string CompanionName;
+        string ip;
+        string HistoryFilePath = "";
         TcpClient client { get; }
         Server server; // сервер
 
@@ -21,14 +27,55 @@ namespace ChatServer
             serverObject.AddConnection(this);
         }
 
+        void SendHistory()
+        {
+            
+            if (Directory.Exists(Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName))
+            {
+                HistoryFilePath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
+            }
+            else if (Directory.Exists(Directory.GetCurrentDirectory() + @"\ServerData\" + CompanionName + "_" + ClientName))
+            {
+                HistoryFilePath = Directory.GetCurrentDirectory() + @"\ServerData\" + CompanionName + "_" + ClientName;
+            }
+            else
+            {
+                Directory.CreateDirectory(Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName);
+                HistoryFilePath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
+                //создать директорию
+            }
+            try
+            {
+                var xDoc = XDocument.Load(HistoryFilePath + @"\ChatHistory.xml");
+                server.SendMessageById("!ChatHistory:" + xDoc.ToString(), ClientName);
+            }
+            catch
+            {
+                XmlDocument document = new XmlDocument();
+                document.CreateXmlDeclaration("1.0", "utf-8", null);
+                XmlNode root = document.CreateElement("chathistory");
+                document.AppendChild(root);
+                document.Save(HistoryFilePath + @"\ChatHistory.xml");
+                server.SendMessageById("!ChatHistory:null", ClientName);
+            }
+        }
+
+        void FileTransfering()
+        {
+
+        }
+
         public void Process()
         {
+            Console.WriteLine(ClientName + " logged in");
+            //server.BroadcastMessage("!ip", ClientName);
             bool Locker = true;
             List<string> InstructionArray;
             while (Locker)
             {
                 try
                 {
+                    //Console.WriteLine("In Client try");
                     Stream = client.GetStream();
                     string message = GetMessage();
                     InstructionArray = CommandTranslator.Parse(message);
@@ -36,39 +83,47 @@ namespace ChatServer
 
                     switch (InstructionArray[0])
                     {
-                        case "newchat":// если клиент захотел создать чат(он прислал имя Челика с которым хочет чатиться)
-                            foreach (ClientObject clientObj in server.GetClients)// тогда ищем в онлайне этого челика и отправляем ему запрос
+                        case "!newchat":// если клиент захотел создать чат(он прислал имя Челика с которым хочет чатиться)
+                            foreach (ClientObject clientObj in server.GetClients)
                             {
-                                if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("newchat?:" + ClientName, clientObj.client);//**либо переделать отправку
+                                if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("!newchat?:" + ClientName, clientObj.client);//**либо переделать отправку
                             }
                             string answer = GetMessage();
-                            if (answer == "yes")// если согласен
+                            if (answer == "!yes")// если согласен
                             {
                                 CompanionName = InstructionArray[1];
-                                // в бесконечном цикле получаем сообщения от клиента
+
+                                SendHistory();
+                                //Console.WriteLine("History sended to " + ClientName);
+
                                 while (true)
                                 {
                                     try
                                     {
-                                        message = GetMessage();// получаем мессаге от клиента(что-то в духе: я хочу отправить сообщение)
-                                        if (message == "exitchat")
+                                        message = GetMessage();
+                                        if (message == "!exitchat")
                                         {
-                                            server.BroadcastMessage(message, CompanionName);
+                                            server.SendMessageById(message, CompanionName);
                                             CompanionName = null;
                                             break;
                                         }
-                                        else if (message == "exitchataccept")
+                                        else if (message == "!exitchataccept")
                                         {
                                             CompanionName = null;
                                             break;
                                         }
-                                        message = String.Format("{0}: {1}", ClientName, message);
-                                        server.BroadcastMessage(message, CompanionName);
+                                        else if (message == "!file")
+                                        {
+
+                                        }
+                                        XmlProcessing.WriteXML(HistoryFilePath, message, ClientName, DateTime.Now.ToString());
+                                        //Console.WriteLine("Wrote message from " + ClientName);
+                                        server.SendMessageById(message, CompanionName);
                                     }
                                     catch
                                     {
-                                        message = "exitchat";
-                                        server.BroadcastMessage(message, CompanionName);
+                                        message = "!exitchat";
+                                        server.SendMessageById(message, CompanionName);
                                         CompanionName = null;
                                         Locker = false;
                                         server.RemoveConnection(ClientName);
@@ -82,66 +137,76 @@ namespace ChatServer
                                 CompanionName = null;
                             }
                             break;
-                        case "yes"://либо здесь обрабатывать ответ на вопрос о чате
+                        case "!yes"://либо здесь обрабатывать ответ на вопрос о чате
                             foreach (ClientObject clientObj in server.GetClients)// ищем в онлайне этого челика и отправляем ему запрос
                             {
                                 if (InstructionArray[1] == clientObj.ClientName)
                                 {
-                                    server.SendMessage("yes", clientObj.client);
-                                    Console.WriteLine("Sended yes from " + ClientName + " to " + clientObj.ClientName);
+                                    server.SendMessage("!yes", clientObj.client);
+                                    //Console.WriteLine("Sended yes from " + ClientName + " to " + clientObj.ClientName);
                                 }
                             }
                             CompanionName = InstructionArray[1];
+                            Thread.Sleep(100);
+                            SendHistory();
+                            Console.WriteLine("History sended to " + ClientName);
+
                             while (true)
                             {
                                 try
                                 {
                                     message = GetMessage();
-                                    if (message == "exitchat")
+                                    if (message == "!exitchat")
                                     {
-                                        server.BroadcastMessage(message, CompanionName);
+                                        server.SendMessageById(message, CompanionName);
                                         CompanionName = null;
                                         break;
                                     }
-                                    else if (message == "exitchataccept")
+                                    else if (message == "!exitchataccept")
                                     {
                                         CompanionName = null;
                                         break;
                                     }
-                                    message = String.Format("{0}: {1}", ClientName, message);
-                                    server.BroadcastMessage(message, CompanionName);
+                                    XmlProcessing.WriteXML(HistoryFilePath, message, ClientName, DateTime.Now.ToString());
+                                    Console.WriteLine("Wrote message from " + ClientName);
+                                    message = string.Format("{0}: {1}", ClientName, message);
+                                    server.SendMessageById(message, CompanionName);
                                 }
                                 catch
                                 {
-                                    message = "exitchat";
-                                    server.BroadcastMessage(message, CompanionName);
+                                    message = "!exitchat";
+                                    server.SendMessageById(message, CompanionName);
                                     CompanionName = null;
                                     Locker = false;
                                     server.RemoveConnection(ClientName);
+                                    Console.WriteLine(ClientName + " disconnected");
                                     Close();
                                     break;
                                 }
                             }
                             break;
-                        case "no":
+                        case "!no":
                             {
                                 foreach (ClientObject clientObj in server.GetClients)
                                 {
-                                    if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("no", clientObj.client);
+                                    if (InstructionArray[1] == clientObj.ClientName) server.SendMessage("!no", clientObj.client);
                                 }
                             }
                             break;
-                        case "exit":
-                            Console.WriteLine("Disconnected");
+                        case "!exit":
+                            Console.WriteLine(ClientName + " disconnected");
                             Locker = false;
                             server.RemoveConnection(ClientName);
                             Close();
                             break;
                     }
                 }
-                catch (Exception e)
+                catch
                 {
-                    Console.WriteLine(e.Message);
+                    Console.WriteLine(ClientName + " disconnected");
+                    Locker = false;
+                    server.RemoveConnection(ClientName);
+                    Close();
                 }
             }
         }
