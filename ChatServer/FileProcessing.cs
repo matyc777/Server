@@ -15,7 +15,7 @@ namespace ChatServer
 {
     class FileProcessing
     {
-        static public void Send(List<string> paths)//0-путь, 1-ip
+        static public void Send(List<string> paths, string ip)//0-путь, 1-ip
         {
             FileStream stream = null;
             BinaryReader f = null;
@@ -30,7 +30,7 @@ namespace ChatServer
 
             try
             {
-                host = Console.ReadLine();
+                host = ip;
                 fNumb[0] = (byte)paths.Count;
                 Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 IPAddress ipAddress = Dns.GetHostEntry(host).AddressList[0];
@@ -83,7 +83,7 @@ namespace ChatServer
             }
         }
 
-        static void Receive(string path)
+        static public string Receive(string path)
         {
             FileStream stream = null;
             BinaryWriter f = null;
@@ -169,10 +169,12 @@ namespace ChatServer
                 cl.Send(ping);
                 s.Close();
                 cl.Close();
+                return fullPath;
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                return "error";
+                //Console.WriteLine(e.Message);
             }
         }
 

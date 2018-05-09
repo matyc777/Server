@@ -15,16 +15,17 @@ namespace ChatServer
         protected internal NetworkStream Stream { get; private set; }
         string CompanionName;
         string ip;
-        string HistoryFilePath = "";
+        string HistoryPath = "";
         TcpClient client { get; }
         Server server; // сервер
 
-        public ClientObject(TcpClient tcpClient, Server serverObject, string ClientName)
+        public ClientObject(TcpClient tcpClient, Server serverObject, string ClientName, string ip)
         {
             this.ClientName = ClientName;
             client = tcpClient;
             server = serverObject;
             serverObject.AddConnection(this);
+            this.ip = ip;
         }
 
         void SendHistory()
@@ -32,21 +33,21 @@ namespace ChatServer
             
             if (Directory.Exists(Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName))
             {
-                HistoryFilePath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
+                HistoryPath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
             }
             else if (Directory.Exists(Directory.GetCurrentDirectory() + @"\ServerData\" + CompanionName + "_" + ClientName))
             {
-                HistoryFilePath = Directory.GetCurrentDirectory() + @"\ServerData\" + CompanionName + "_" + ClientName;
+                HistoryPath = Directory.GetCurrentDirectory() + @"\ServerData\" + CompanionName + "_" + ClientName;
             }
             else
             {
                 Directory.CreateDirectory(Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName);
-                HistoryFilePath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
+                HistoryPath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
                 //создать директорию
             }
             try
             {
-                var xDoc = XDocument.Load(HistoryFilePath + @"\ChatHistory.xml");
+                var xDoc = XDocument.Load(HistoryPath + @"\ChatHistory.xml");
                 server.SendMessageById("!ChatHistory:" + xDoc.ToString(), ClientName);
             }
             catch
@@ -55,14 +56,31 @@ namespace ChatServer
                 document.CreateXmlDeclaration("1.0", "utf-8", null);
                 XmlNode root = document.CreateElement("chathistory");
                 document.AppendChild(root);
-                document.Save(HistoryFilePath + @"\ChatHistory.xml");
+                document.Save(HistoryPath + @"\ChatHistory.xml");
                 server.SendMessageById("!ChatHistory:null", ClientName);
             }
         }
 
         void FileTransfering()
         {
-
+            server.SendMessageById("!file", CompanionName);
+            server.SendMessageById("!acceptfilelisten", ClientName);
+            string fullPath = FileProcessing.Receive(HistoryPath);
+            string ip;
+            if (fullPath != "error")
+            {
+                List<string> paths = new List<string>();
+                paths.Add(fullPath);
+                foreach (ClientObject clientObj in server.GetClients)
+                {
+                    if (CompanionName == clientObj.ClientName)
+                    {
+                        ip = clientObj.ip;
+                        FileProcessing.Send(paths, ip);
+                    }
+                }
+            }
+            else { server.SendMessageById("!errorfilesending", CompanionName); }
         }
 
         public void Process()
@@ -95,6 +113,7 @@ namespace ChatServer
 
                                 SendHistory();
                                 //Console.WriteLine("History sended to " + ClientName);
+                                Console.WriteLine(HistoryPath);
 
                                 while (true)
                                 {
@@ -114,9 +133,10 @@ namespace ChatServer
                                         }
                                         else if (message == "!file")
                                         {
-
+                                            Thread fileThread = new Thread(FileTransfering);
+                                            fileThread.Start();
                                         }
-                                        XmlProcessing.WriteXML(HistoryFilePath, message, ClientName, DateTime.Now.ToString());
+                                        XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
                                         //Console.WriteLine("Wrote message from " + ClientName);
                                         server.SendMessageById(message, CompanionName);
                                     }
@@ -149,7 +169,7 @@ namespace ChatServer
                             CompanionName = InstructionArray[1];
                             Thread.Sleep(100);
                             SendHistory();
-                            Console.WriteLine("History sended to " + ClientName);
+                            //Console.WriteLine("History sended to " + ClientName);
 
                             while (true)
                             {
@@ -167,9 +187,13 @@ namespace ChatServer
                                         CompanionName = null;
                                         break;
                                     }
-                                    XmlProcessing.WriteXML(HistoryFilePath, message, ClientName, DateTime.Now.ToString());
-                                    Console.WriteLine("Wrote message from " + ClientName);
-                                    message = string.Format("{0}: {1}", ClientName, message);
+                                    else if (message == "!file")
+                                    {
+                                        Thread fileThread = new Thread(FileTransfering);
+                                        fileThread.Start();
+                                    }
+                                    XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
+                                    //Console.WriteLine("Wrote message from " + ClientName);
                                     server.SendMessageById(message, CompanionName);
                                 }
                                 catch

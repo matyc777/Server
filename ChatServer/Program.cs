@@ -12,6 +12,7 @@ namespace ChatServer
         //Tuple<int , string> tuple = new Tuple<int, string>(1, "qwe");
         static void Main(string[] args)
         {
+            
             try
             {
                 server = new Server();

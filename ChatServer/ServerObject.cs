@@ -68,13 +68,13 @@ namespace ChatServer
                     {
                         Base.Write(InstructionArray[1], InstructionArray[2]);
                         SendMessage("!accepted" + CommandTranslator.Encode(GetClientsNames), tcpClient);//+список онлайна
-                        ClientObject RegClientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
+                        ClientObject RegClientObject = new ClientObject(tcpClient, this, InstructionArray[1], InstructionArray[3]);
                         Thread RegClientThread = new Thread(new ThreadStart(RegClientObject.Process));
                         RegClientThread.Start();
                     }
                     catch
                     {
-                        SendMessage("!unaccepted", tcpClient);
+                        SendMessage("!unacceptedsignup", tcpClient);
                     }
                     //добавление в базу
                     break;
@@ -82,7 +82,7 @@ namespace ChatServer
                     if (Base.Find(InstructionArray[1], InstructionArray[2]))
                     {
                         SendMessage("!accepted" + CommandTranslator.Encode(GetClientsNames), tcpClient);//+список онлайна
-                        ClientObject clientObject = new ClientObject(tcpClient, this, InstructionArray[1]);
+                        ClientObject clientObject = new ClientObject(tcpClient, this, InstructionArray[1], InstructionArray[3]);
                         Thread clientThread = new Thread(new ThreadStart(clientObject.Process));
                         clientThread.Start();
                     }

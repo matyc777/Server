@@ -63,6 +63,7 @@
     <Compile Include="AnswerStructure.cs" />
     <Compile Include="ClientObject.cs" />
     <Compile Include="CommandTranslator.cs" />
+    <Compile Include="FileListener.cs" />
     <Compile Include="FileProcessing.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
