@@ -30,7 +30,6 @@ namespace ChatServer
 
         void SendHistory()
         {
-            
             if (Directory.Exists(Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName))
             {
                 HistoryPath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
@@ -61,22 +60,21 @@ namespace ChatServer
             }
         }
 
-        void FileTransfering()
+        void FileTransfering(object FileName)
         {
             server.SendMessageById("!file", CompanionName);
             server.SendMessageById("!acceptfilelisten", ClientName);
-            string fullPath = FileProcessing.Receive(HistoryPath);
+            Console.WriteLine(HistoryPath);
+            string fullPath = HistoryPath + @"\" + FileName;
             string ip;
-            if (fullPath != "error")
+            if (FileProcessing.Receive(fullPath))
             {
-                List<string> paths = new List<string>();
-                paths.Add(fullPath);
                 foreach (ClientObject clientObj in server.GetClients)
                 {
                     if (CompanionName == clientObj.ClientName)
                     {
                         ip = clientObj.ip;
-                        FileProcessing.Send(paths, ip);
+                        FileProcessing.Send(fullPath, ip);
                     }
                 }
             }
@@ -86,16 +84,17 @@ namespace ChatServer
         public void Process()
         {
             Console.WriteLine(ClientName + " logged in");
-            //server.BroadcastMessage("!ip", ClientName);
             bool Locker = true;
             List<string> InstructionArray;
+            List<string> FileInstructionArray;
             while (Locker)
             {
                 try
                 {
-                    //Console.WriteLine("In Client try");
                     Stream = client.GetStream();
+                    Console.WriteLine("before");
                     string message = GetMessage();
+                    Console.WriteLine("after");
                     InstructionArray = CommandTranslator.Parse(message);
                     Console.WriteLine(message);
 
@@ -114,31 +113,35 @@ namespace ChatServer
                                 SendHistory();
                                 //Console.WriteLine("History sended to " + ClientName);
                                 Console.WriteLine(HistoryPath);
-
+                                server.AddBusyClient(this);
                                 while (true)
                                 {
                                     try
                                     {
                                         message = GetMessage();
+                                        FileInstructionArray = CommandTranslator.Parse(message);
                                         if (message == "!exitchat")
                                         {
                                             server.SendMessageById(message, CompanionName);
                                             CompanionName = null;
+                                            server.RemoveBusyClient(ClientName);
                                             break;
                                         }
                                         else if (message == "!exitchataccept")
                                         {
+                                            server.RemoveBusyClient(ClientName);
                                             CompanionName = null;
                                             break;
                                         }
-                                        else if (message == "!file")
+                                        else if (FileInstructionArray[0] == "!file")
                                         {
-                                            Thread fileThread = new Thread(FileTransfering);
-                                            fileThread.Start();
+                                            Thread fileThread = new Thread(new ParameterizedThreadStart(FileTransfering));
+                                            fileThread.Start(FileInstructionArray[1]);
+                                            Console.WriteLine("new file " + ClientName);
                                         }
                                         XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
                                         //Console.WriteLine("Wrote message from " + ClientName);
-                                        server.SendMessageById(message, CompanionName);
+                                        if (FileInstructionArray[0] != "!file") server.SendMessageById(message, CompanionName);
                                     }
                                     catch
                                     {
@@ -146,6 +149,7 @@ namespace ChatServer
                                         server.SendMessageById(message, CompanionName);
                                         CompanionName = null;
                                         Locker = false;
+                                        server.RemoveBusyClient(ClientName);
                                         server.RemoveConnection(ClientName);
                                         Close();
                                         break;
@@ -170,31 +174,35 @@ namespace ChatServer
                             Thread.Sleep(100);
                             SendHistory();
                             //Console.WriteLine("History sended to " + ClientName);
-
+                            server.AddBusyClient(this);
                             while (true)
                             {
                                 try
                                 {
                                     message = GetMessage();
+                                    FileInstructionArray = CommandTranslator.Parse(message);
                                     if (message == "!exitchat")
                                     {
                                         server.SendMessageById(message, CompanionName);
                                         CompanionName = null;
+                                        server.RemoveBusyClient(ClientName);
                                         break;
                                     }
                                     else if (message == "!exitchataccept")
                                     {
                                         CompanionName = null;
+                                        server.RemoveBusyClient(ClientName);
                                         break;
                                     }
-                                    else if (message == "!file")
+                                    else if (FileInstructionArray[0] == "!file")
                                     {
-                                        Thread fileThread = new Thread(FileTransfering);
-                                        fileThread.Start();
+                                        Thread fileThread = new Thread(new ParameterizedThreadStart(FileTransfering));
+                                        fileThread.Start(FileInstructionArray[1]);
+                                        Console.WriteLine("new file " + ClientName);
                                     }
                                     XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
                                     //Console.WriteLine("Wrote message from " + ClientName);
-                                    server.SendMessageById(message, CompanionName);
+                                    if (FileInstructionArray[0] != "!file") server.SendMessageById(message, CompanionName);
                                 }
                                 catch
                                 {
@@ -202,6 +210,7 @@ namespace ChatServer
                                     server.SendMessageById(message, CompanionName);
                                     CompanionName = null;
                                     Locker = false;
+                                    server.RemoveBusyClient(ClientName);
                                     server.RemoveConnection(ClientName);
                                     Console.WriteLine(ClientName + " disconnected");
                                     Close();
@@ -220,6 +229,7 @@ namespace ChatServer
                         case "!exit":
                             Console.WriteLine(ClientName + " disconnected");
                             Locker = false;
+                            server.RemoveBusyClient(ClientName);
                             server.RemoveConnection(ClientName);
                             Close();
                             break;
@@ -229,6 +239,7 @@ namespace ChatServer
                 {
                     Console.WriteLine(ClientName + " disconnected");
                     Locker = false;
+                    server.RemoveBusyClient(ClientName);
                     server.RemoveConnection(ClientName);
                     Close();
                 }

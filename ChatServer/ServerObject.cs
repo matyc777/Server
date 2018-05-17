@@ -13,7 +13,7 @@ namespace ChatServer
     {
         static TcpListener tcpListener;
         List<ClientObject> clients = new List<ClientObject>(); // все подключения(онлайн)
-        //List<(ClientObject FirstClient, ClientObject SecondClient)> ActiveChats = new List<(ClientObject FirstClient, ClientObject SecondClient)>();//активные чаты
+        List<ClientObject> BusyClients = new List<ClientObject>();
 
         public List<ClientObject> GetClients
         {
@@ -25,12 +25,31 @@ namespace ChatServer
             get
             {
                 List<string> ClientsNames = new List<string>();
-                foreach(ClientObject obj in clients)
+                foreach (ClientObject obj in clients)
                 {
                     ClientsNames.Add(obj.ClientName);
                 }
                 return ClientsNames;
             }
+        }
+
+        protected internal void AddBusyClient(ClientObject clientObject)
+        {
+            BusyClients.Add(clientObject);
+        }
+
+        protected internal void RemoveBusyClient(string id)
+        {
+            ClientObject client = BusyClients.FirstOrDefault(c => c.ClientName == id);
+            if (client != null) BusyClients.Remove(client);
+        }
+
+        protected internal bool IsBusy(string id)
+        {
+            
+            ClientObject client = BusyClients.FirstOrDefault(c => c.ClientName == id);
+            if (client == null) return false;
+            else return true;
         }
 
         protected internal void AddConnection(ClientObject clientObject)
@@ -89,6 +108,7 @@ namespace ChatServer
                     else
                     {
                         SendMessage("!unaccepted", tcpClient);
+                        Console.WriteLine("!unaccepted");
                     }
                     break;
                 case "!online":
@@ -101,6 +121,29 @@ namespace ChatServer
             }
         }
 
+        private void OnlineBroadcast()
+        {
+            StringBuilder OnlineString;
+            byte[] data;
+            while (true)
+            {
+                foreach (ClientObject Client in clients)
+                {
+                    OnlineString = new StringBuilder();
+                    OnlineString.Append("!online");
+                    foreach (ClientObject OnlineClient in clients)
+                    {
+                        OnlineString.Append(":" + OnlineClient.ClientName);
+                        if (IsBusy(OnlineClient.ClientName)) OnlineString.Append(",+");
+                        else OnlineString.Append(",-");
+                    }
+                    data = Encoding.Unicode.GetBytes(OnlineString.ToString());
+                    Client.Stream.Write(data, 0, data.Length);
+                }
+                Thread.Sleep(3000);
+            }
+        }
+
         protected internal void Start()
         {
             try
@@ -108,10 +151,11 @@ namespace ChatServer
                 tcpListener = new TcpListener(IPAddress.Any, 53010);
                 tcpListener.Start();
                 Console.WriteLine("Сервер запущен. Ожидание подключений...");
+                Thread OnlineBroadcastThread = new Thread(OnlineBroadcast);
+                OnlineBroadcastThread.Start();
 
                 while (true)
                 {
-                    //Console.WriteLine("begin");
                     TcpClient tcpClient = tcpListener.AcceptTcpClient();
                     Console.WriteLine("Accepted client");
                     Thread AcceptedClientThread = new Thread(new ParameterizedThreadStart(AcceptedClientThreadFunction));
@@ -128,7 +172,7 @@ namespace ChatServer
         private string GetMessage(TcpClient client)
         {
             NetworkStream stream = client.GetStream();
-            byte[] data = new byte[64]; // буфер для получаемых данных
+            byte[] data = new byte[64];
             StringBuilder builder = new StringBuilder();
             int bytes = 0;
             do
@@ -148,23 +192,21 @@ namespace ChatServer
             stream.Write(data, 0, data.Length);
         }
 
-        // отправка сообщения микрочелу
         protected internal void SendMessageById(string message, string id)
         {
             byte[] data = Encoding.Unicode.GetBytes(message);
             for (int i = 0; i < clients.Count; i++)
             {
-                if (clients[i].ClientName == id) 
+                if (clients[i].ClientName == id)
                 {
                     clients[i].Stream.Write(data, 0, data.Length);
                 }
             }
         }
 
-        // отключение всех клиентов
         protected internal void Disconnect()
         {
-            tcpListener.Stop(); //остановка сервера
+            tcpListener.Stop();
 
             for (int i = 0; i < clients.Count; i++)
             {
