@@ -6,7 +6,7 @@ using System.Text;
 
 namespace ChatServer
 {
-    class Base
+    class UserBaseDao
     {
         static public void Write(string Name, string Password)
         {

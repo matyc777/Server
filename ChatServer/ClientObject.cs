@@ -30,6 +30,7 @@ namespace ChatServer
 
         void SendHistory()
         {
+            string id = "";
             if (Directory.Exists(Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName))
             {
                 HistoryPath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
@@ -44,6 +45,15 @@ namespace ChatServer
                 HistoryPath = Directory.GetCurrentDirectory() + @"\ServerData\" + ClientName + "_" + CompanionName;
                 //создать директорию
             }
+            for (int i = HistoryPath.Length - 1; i >= 0; i--)
+            {
+                if (HistoryPath[i] == '\\')
+                {
+                    id = HistoryPath.Substring(i + 1);
+                    break;
+                }
+            }
+            server.LockMutex(id);
             try
             {
                 var xDoc = XDocument.Load(HistoryPath + @"\ChatHistory.xml");
@@ -58,11 +68,12 @@ namespace ChatServer
                 document.Save(HistoryPath + @"\ChatHistory.xml");
                 server.SendMessageById("!ChatHistory:null", ClientName);
             }
+            server.UnlockMutex(id);
         }
 
         void FileTransfering(object FileName)
         {
-            server.SendMessageById("!file", CompanionName);
+            server.SendMessageById("!file:" + FileName, CompanionName);
             server.SendMessageById("!acceptfilelisten", ClientName);
             Console.WriteLine(HistoryPath);
             string fullPath = HistoryPath + @"\" + FileName;
@@ -74,7 +85,8 @@ namespace ChatServer
                     if (CompanionName == clientObj.ClientName)
                     {
                         ip = clientObj.ip;
-                        FileProcessing.Send(fullPath, ip);
+                        if (FileProcessing.Send(fullPath, ip)) Console.WriteLine("Sended to " + CompanionName);
+                        else Console.WriteLine("error");
                     }
                 }
             }
@@ -139,7 +151,7 @@ namespace ChatServer
                                             fileThread.Start(FileInstructionArray[1]);
                                             Console.WriteLine("new file " + ClientName);
                                         }
-                                        XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
+                                        if (message != "" && message != null) XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
                                         //Console.WriteLine("Wrote message from " + ClientName);
                                         if (FileInstructionArray[0] != "!file") server.SendMessageById(message, CompanionName);
                                     }
@@ -200,7 +212,7 @@ namespace ChatServer
                                         fileThread.Start(FileInstructionArray[1]);
                                         Console.WriteLine("new file " + ClientName);
                                     }
-                                    XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
+                                    if (message != "" && message != null) XmlProcessing.WriteXML(HistoryPath, message, ClientName, DateTime.Now.ToString());
                                     //Console.WriteLine("Wrote message from " + ClientName);
                                     if (FileInstructionArray[0] != "!file") server.SendMessageById(message, CompanionName);
                                 }

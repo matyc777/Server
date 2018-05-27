@@ -20,8 +20,9 @@ namespace ChatServer
                 file.Close();
                 return true;
             }
-            catch
+            catch(Exception ex)
             {
+                Console.WriteLine(ex.ToString());
                 return false;
             }
         }
@@ -30,7 +31,7 @@ namespace ChatServer
         {
             try
             {
-                var listener = new TcpListener(IPAddress.Loopback, 11000);
+                var listener = new TcpListener(IPAddress.Any, 11000);
                 listener.Start();
                 using (var client = listener.AcceptTcpClient())
                 using (var stream = client.GetStream())
@@ -45,8 +46,9 @@ namespace ChatServer
                 }
                 return true;
             }
-            catch
+            catch(Exception ex)
             {
+                Console.WriteLine(ex.ToString());
                 return false;
             }
         }

@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.IO;
+using System.Diagnostics;
 
 namespace ChatServer
 {
@@ -14,7 +15,23 @@ namespace ChatServer
         static TcpListener tcpListener;
         List<ClientObject> clients = new List<ClientObject>(); // все подключения(онлайн)
         List<ClientObject> BusyClients = new List<ClientObject>();
+        Dictionary<string, bool> xmlMutexes = new Dictionary<string, bool>();
 
+        public void LockMutex(string id)//true-занят
+        {
+            if (!xmlMutexes.ContainsKey(id)) xmlMutexes.Add(id, false);
+            while (xmlMutexes[id])
+            {
+                Thread.Sleep(1000);
+                Debug.WriteLine("someone is waiting for xml with this id: " + id);
+            }
+            xmlMutexes[id] = true;
+        }
+
+        public void UnlockMutex(string id)
+        {
+            xmlMutexes[id] = false;
+        }
         public List<ClientObject> GetClients
         {
             get { return clients; }
@@ -40,8 +57,12 @@ namespace ChatServer
 
         protected internal void RemoveBusyClient(string id)
         {
-            ClientObject client = BusyClients.FirstOrDefault(c => c.ClientName == id);
-            if (client != null) BusyClients.Remove(client);
+            try
+            {
+                ClientObject client = BusyClients.FirstOrDefault(c => c.ClientName == id);
+                if (client != null) BusyClients.Remove(client);
+            }
+            catch { }
         }
 
         protected internal bool IsBusy(string id)
@@ -85,7 +106,7 @@ namespace ChatServer
                 case "!signup":
                     try
                     {
-                        Base.Write(InstructionArray[1], InstructionArray[2]);
+                        UserBaseDao.Write(InstructionArray[1], InstructionArray[2]);
                         SendMessage("!accepted" + CommandTranslator.Encode(GetClientsNames), tcpClient);//+список онлайна
                         ClientObject RegClientObject = new ClientObject(tcpClient, this, InstructionArray[1], InstructionArray[3]);
                         Thread RegClientThread = new Thread(new ThreadStart(RegClientObject.Process));
@@ -98,7 +119,7 @@ namespace ChatServer
                     //добавление в базу
                     break;
                 case "!login":
-                    if (Base.Find(InstructionArray[1], InstructionArray[2]))
+                    if (UserBaseDao.Find(InstructionArray[1], InstructionArray[2]))
                     {
                         SendMessage("!accepted" + CommandTranslator.Encode(GetClientsNames), tcpClient);//+список онлайна
                         ClientObject clientObject = new ClientObject(tcpClient, this, InstructionArray[1], InstructionArray[3]);
@@ -151,8 +172,8 @@ namespace ChatServer
                 tcpListener = new TcpListener(IPAddress.Any, 53010);
                 tcpListener.Start();
                 Console.WriteLine("Сервер запущен. Ожидание подключений...");
-                Thread OnlineBroadcastThread = new Thread(OnlineBroadcast);
-                OnlineBroadcastThread.Start();
+                //Thread OnlineBroadcastThread = new Thread(OnlineBroadcast);
+                //OnlineBroadcastThread.Start();
 
                 while (true)
                 {
